@@ -13,28 +13,55 @@ specific scenario's like file downloads or Read/Write operations.
 
 This library can be used to track the progress of an operation, 
 the amount of work performed of which can be measured as 
-an integer number
+an integer number.
+
 The package provides two methods to count the amount of work:
 *  wrappers around standard io.Reader and io.Writer objects, so anything that uses standard io.Reader/io.Writer objects can give you progress feedback
-*  processed(int) method to inform about amount of work directly   
+*  Update(int) method to inform the tracker about amount of work directly
 
-Progresso object sends back a progressio.Progress struct over a channel, 
-so a subscriber can give the progress feedback.
+ProgressTracker sends back a Progress struct over a channel, 
+so a subscriber can receive the progress feedback.
 
 It attempts to do all the heavy lifting for you:
 
-* updates are throttled to 1 per 100ms (10 per second)
-* Precalculates things (if possible) like:
-  * Speed in bytes/sec of the last few operations
-  * Average speed in bytes/sec since the start of the operation
+* updates are throttled to a confugurable value (by time intervals or volume of work processed)
+* formatting the value to configurable measurement unit (bytes, distance, etc)
+* Precalculates things like:
+  * Speed in unit/sec of the last few operations
+  * Average speed in unit/sec since the start of the operation
   * Remaining time
   * Percentage
 
 Some of these statistics are not available if the size was not specified up front.
 
-## Progress object
+## API
 
-### Layout
+### ProgressTracker struct
+
+```
+type ProgressTracker struct {
+	   Channel       chan Progress	
+}
+```
+
+The  progresso.ProgressTracker object has two genereal methods: 
+* ```Update(int64)``` - updates the progress statement
+* ```Stop()``` - stops the tracker, and sends the last message
+
+and several setters to set configurable options:
+* ```Size(size int64)```
+* ```UpdateFreq(freq time.Duration)``` - sets the frequency of the updates over the channels
+* ```UpdateGranule(granule int64)``` - sets size of the granule of work at which to send updates
+
+#### Constructors
+
+* ```NewProgressTracker(units.Unit)``` - creates a new progress tracker with the given measurement unit
+* ```NewBytesProgressTracker()``` - creates a new progress tracker with bytes unit
+* ```NewProgressTrackerReader(size)``` - creates a new ProgressTracker impelementing io.Reader interface. Specify a size <= 0 if you don't know the size.
+* ```NewProgressTrackerWriter(size)``` - creates a new ProgressTracker impelementing io.Writer interface. Specify a size <= 0 if you don't know the size.
+
+
+### Progress struct
 
 ```
 type Progress struct {
@@ -43,19 +70,40 @@ type Progress struct {
     Percent     float64       // If the size is known, the progress of the transfer in %
     SpeedAvg    int64         // Bytes/sec average over the entire transfer
     Speed       int64         // Bytes/sec of the last few reads/writes
+    Unit        units.Unit    // The unit system is used to format the value (for example to bytes, kilobytes, megabytes, etc)
     Remaining   time.Duration // Estimated time remaining, only available if the size is known.
     StartTime   time.Time     // When the transfer was started
     StopTime    time.Time     // only specified when the transfer is completed: when the transfer was stopped
 }
 
 ```
-
-### Functions
-
-The progressio.Progress object has at the moment only one function, the
+The progresso.Progress object has at the moment only one method, the
 String() function to return the `string` representation of the object.
 
+### Unit struct
+
+Unit struct represents the unit of measure of operation progress
+
+```
+type Unit struct {
+   Size       int64    // The size of one unit
+   Name       string   // The name of the unit standard
+   Multiplier int64    // The multiplier used by the unit standard
+   Names      []string // The names used by the unit standard
+   Shorts     []string // The shortened names used by the unit standard
+}
+```
+
+Several common units already defined: 
+* units.BytesMetric
+* units.BytesIEC
+* units.DistanceMetric
+
+See units.bytes and unit.distance how to define your own units  
+
 ## Example
+
+Copy data with progress tracking using ProgressTrackerWriter implementing io.Writer/Reader interface
 
 ```
 import (
@@ -67,7 +115,7 @@ import (
 func copyProgress(w io.Writer, r io.Reader, size int64) (written int64, err error) {
   
   // Wrap your io.Writer:
-  pw, ch := progresso.NewProgressWriter(w, size)
+  pw, ch := progresso.NewProgressTrackerWriter(w, size)
   defer pw.Close()
   
   // Launch a Go-Routine reading from the progress channel
