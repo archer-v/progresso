@@ -103,7 +103,7 @@ See units.bytes and unit.distance how to define your own units
 
 ## Example
 
-Copy data with progress tracking using ProgressTrackerWriter implementing io.Writer/Reader interface
+Copying data with progress tracking using ProgressTrackerWriter implementing io.Writer/Reader interface
 
 ```
 import (
@@ -128,5 +128,32 @@ func copyProgress(w io.Writer, r io.Reader, size int64) (written int64, err erro
   
   // Copy the data from the reader to the new writer
   return io.Copy(pw, r)
+}
+```
+
+Example of tracking object movement process
+
+```
+import (
+  "io"
+  "github.com/archer-v/progresso"
+)
+
+func movement(distance int64) {
+  r := NewProgressTracker(distance.DistanceMetric)
+  r.UpdateGranule(100).Size(distance)
+  
+  // Launch a Go-Routine reading from the progress channel
+  go func() {
+    for p := range ch {
+      fmt.Printf("\rProgress: %s", p.String())
+    }
+    fmt.Printf("\nDone\n")
+  }
+  
+  for i := 0; i < 200; i++ {
+	time.Sleep(20 * time.Millisecond)
+	r.Update(10) // move at 10 meters
+  }
 }
 ```
