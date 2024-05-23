@@ -30,6 +30,7 @@ type ProgressTracker struct {
 	ts            int
 }
 
+// NewProgressTracker creates a new progress tracker with the given measurement unit
 func NewProgressTracker(unit units.Unit) *ProgressTracker {
 	return &ProgressTracker{
 		Channel:       make(chan Progress),
@@ -44,6 +45,7 @@ func NewProgressTracker(unit units.Unit) *ProgressTracker {
 	}
 }
 
+// NewBytesProgressTracker creates a new progress tracker with bytes unit
 func NewBytesProgressTracker() *ProgressTracker {
 	return NewProgressTracker(bytes.BytesMetric)
 }
