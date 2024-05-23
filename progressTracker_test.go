@@ -3,6 +3,7 @@ package progresso
 import (
 	"bytes"
 	"io"
+	"progresso/units/distance"
 	"strings"
 	"testing"
 	"time"
@@ -114,4 +115,17 @@ func TestProgressReaderSize(t *testing.T) {
 
 	io.Copy(w, r)
 	t.Logf("Copy done\n")
+}
+
+func TestProgressTrackerDistance(t *testing.T) {
+	r := NewProgressTracker(distance.DistanceMetric)
+
+	r.UpdateGranule(100).Size(2000)
+	go readProgress(t, "TestDistance", r.Channel)
+
+	for i := 0; i < 200; i++ {
+		time.Sleep(throttleTime)
+		r.Update(10) // 10 meters
+	}
+	t.Logf("done\n")
 }
