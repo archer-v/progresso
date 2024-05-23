@@ -1,6 +1,6 @@
 package bytes
 
-import "progresso/units"
+import "github.com/archer-v/progresso/units"
 
 // Various constants related to the units
 const (

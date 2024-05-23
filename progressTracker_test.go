@@ -2,8 +2,8 @@ package progresso
 
 import (
 	"bytes"
+	"github.com/archer-v/progresso/units/distance"
 	"io"
-	"progresso/units/distance"
 	"strings"
 	"testing"
 	"time"

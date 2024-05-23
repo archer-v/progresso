@@ -1,7 +1,7 @@
 package progresso
 
 import (
-	"progresso/units/bytes"
+	"github.com/archer-v/progresso/units/bytes"
 	"testing"
 	"time"
 )

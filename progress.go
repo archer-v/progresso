@@ -58,7 +58,7 @@ package progresso
 
 import (
 	"fmt"
-	"progresso/units"
+	"github.com/archer-v/progresso/units"
 	"time"
 )
 

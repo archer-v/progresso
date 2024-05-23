@@ -1,8 +1,8 @@
 package progresso
 
 import (
-	"progresso/units"
-	"progresso/units/bytes"
+	"github.com/archer-v/progresso/units"
+	"github.com/archer-v/progresso/units/bytes"
 	"time"
 )
 

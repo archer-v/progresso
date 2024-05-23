@@ -1,6 +1,6 @@
 package distance
 
-import "progresso/units"
+import "github.com/archer-v/progresso/units"
 
 var DistanceMetric = units.Unit{
 	Name:       "Distance",
