@@ -20,7 +20,11 @@ func (ss Unit) getUnit(size int64) (divider int64, name, short string) {
 	if size < 0 {
 		size = -size
 	}
-	if size == 0 {
+
+	if len(ss.Names) == 0 || len(ss.Shorts) == 0 {
+		return 1, "", ""
+	}
+	if size == 0 || ss.Multiplier <= 1 {
 		return 1, ss.Names[0], ss.Shorts[0]
 	}
 	div := ss.Size

@@ -24,7 +24,7 @@ so a subscriber can receive the progress feedback.
 
 It attempts to do all the heavy lifting for you:
 
-* updates are throttled to a confugurable value (by time intervals or volume of work processed)
+* updates are throttled to a configurable value (by time intervals or volume of work processed)
 * formatting the value to configurable measurement unit (bytes, distance, etc)
 * Precalculates things like:
   * Speed in unit/sec of the last few operations
