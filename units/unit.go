@@ -21,7 +21,10 @@ func (ss Unit) getUnit(size int64) (divider int64, name, short string) {
 		size = -size
 	}
 
-	if len(ss.Names) == 0 || len(ss.Shorts) == 0 {
+	if ss.Names == nil ||
+		ss.Shorts == nil ||
+		len(ss.Names) == 0 ||
+		len(ss.Shorts) == 0 {
 		return 1, "", ""
 	}
 	if size == 0 || ss.Multiplier <= 1 {
