@@ -55,7 +55,7 @@ func getReader(size int) io.Reader {
 	}
 }
 
-func readProgress(t *testing.T, msg string, ch <-chan Progress) {
+func readProgress(t *testing.T, msg string, ch <-chan Progress, done chan<- struct{}) {
 	cs := ""
 	p := Progress{}
 	for p = range ch {
@@ -67,6 +67,8 @@ func readProgress(t *testing.T, msg string, ch <-chan Progress) {
 		t.Logf("\r%s\r%s", cs, ps)
 	}
 	t.Logf("\n%s\n", p.String())
+
+	close(done)
 }
 
 // TestProgressWriter is an example of using the progresso package with an
@@ -75,9 +77,11 @@ func TestProgressWriter(t *testing.T) {
 	r := getReader(bufSize)
 	w, ch := NewProgressTrackerWriter(getWriter(), -1)
 
-	go readProgress(t, "TestWriter", ch)
+	done := make(chan struct{})
+	go readProgress(t, "TestWriter", ch, done)
 
 	io.Copy(w, r)
+	<-done
 	t.Logf("Copy done\n")
 }
 
@@ -87,9 +91,11 @@ func TestProgressWriterSize(t *testing.T) {
 	r := getReader(bufSize)
 	w, ch := NewProgressTrackerWriter(getWriter(), bufSize)
 
-	go readProgress(t, "TestWriterSize", ch)
+	done := make(chan struct{})
+	go readProgress(t, "TestWriterSize", ch, done)
 
 	io.Copy(w, r)
+	<-done
 	t.Logf("Copy done\n")
 }
 
@@ -99,9 +105,11 @@ func TestProgressReader(t *testing.T) {
 	r, ch := NewProgressTrackerReader(getReader(bufSize), -1)
 	w := getWriter()
 
-	go readProgress(t, "TestReader", ch)
+	done := make(chan struct{})
+	go readProgress(t, "TestReader", ch, done)
 
 	io.Copy(w, r)
+	<-done
 	t.Logf("Copy done\n")
 }
 
@@ -111,9 +119,11 @@ func TestProgressReaderSize(t *testing.T) {
 	r, ch := NewProgressTrackerReader(getReader(bufSize), bufSize)
 	w := getWriter()
 	r.SetUpdateGranule(bufSize / 10)
-	go readProgress(t, "TestReaderSize", ch)
+	done := make(chan struct{})
+	go readProgress(t, "TestReaderSize", ch, done)
 
 	io.Copy(w, r)
+	<-done
 	t.Logf("Copy done\n")
 }
 
@@ -121,11 +131,28 @@ func TestProgressTrackerDistance(t *testing.T) {
 	r := NewProgressTracker(distance.DistanceMetric)
 
 	r.SetUpdateGranule(100).SetSize(2000)
-	go readProgress(t, "TestDistance", r.Channel)
+	done := make(chan struct{})
+	go readProgress(t, "TestDistance", r.Channel, done)
 
 	for i := 0; i < 200; i++ {
 		time.Sleep(throttleTime)
 		r.Increment(10) // 10 meters
 	}
+	<-done
+	t.Logf("done\n")
+}
+
+func TestProgressTrackerDistancePercentGranule(t *testing.T) {
+	r := NewProgressTracker(distance.DistanceMetric)
+
+	r.SetUpdateGranulePercent(10).SetSize(2000)
+	done := make(chan struct{})
+	go readProgress(t, "TestDistance", r.Channel, done)
+
+	for i := 0; i < 200; i++ {
+		time.Sleep(throttleTime)
+		r.Increment(10) // 10 meters
+	}
+	<-done
 	t.Logf("done\n")
 }

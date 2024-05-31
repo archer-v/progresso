@@ -88,7 +88,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 
 	// Throttle sending updated, limit to updateFreq
 	// Always send when finished
-	if time.Since(p.lastSent) < p.updateFreq {
+	if time.Since(p.lastSent) < p.updateFreq && !p.closed {
 		if (p.size == 0) || (p.size > 0 && p.progress < p.size) {
 			return
 		}
@@ -115,10 +115,11 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		p.updatesT = make([]time.Time, p.timeSlots)
 	}
 
-	// Calculate current speed based on the last `p.timeSlots` updates sent
+	// saves update data to the current slot
 	p.updatesW[p.updatesCounter%p.timeSlots] = p.progress
 	p.updatesT[p.updatesCounter%p.timeSlots] = curTime
 	p.updatesCounter++
+
 	if !p.updatesT[p.updatesCounter%p.timeSlots].IsZero() {
 
 		// Calculate the average speed since starting the transfer
@@ -164,28 +165,29 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		return
 	}
 
+	// filter updates except the first one
 	if p.updatesCounter > 1 {
+		pp := p.updatesW[(p.updatesCounter-2)%p.timeSlots]
+
 		// do not send updates if the progress is the same as
-		// the previous one (except if it's the first message)
-		if progress == 0 {
+		// the previous one
+		if p.progress == pp {
 			return
 		}
 
 		// skip updating the progress if the granule is the same as the previous one
 		if p.updateGranule > 1 {
 			// previous progress
-			pp := p.updatesW[(p.updatesCounter-1)%p.timeSlots]
-			if (p.progress-pp)/p.updateGranule == p.progress/p.updateGranule {
+			if pp/p.updateGranule == p.progress/p.updateGranule {
 				return
 			}
 		}
 
 		// skip updating the progress if the granule in percent is the same as the previous one
 		if p.size > 0 && p.updateGranulePercent > 0 {
-			pp := p.updatesW[(p.updatesCounter-1)%p.timeSlots]
 			// prev percent
 			ppt := int(float64(int64((float64(pp)/float64(p.size))*10000.0)) / 100.0)
-			if (int(prog.Percent)-ppt)/p.updateGranulePercent == int(prog.Percent)/p.updateGranulePercent {
+			if ppt/p.updateGranulePercent == int(prog.Percent)/p.updateGranulePercent {
 				return
 			}
 		}
