@@ -17,6 +17,7 @@ const (
 )
 
 type ProgressTracker struct {
+	name                 string
 	size                 int64
 	progress             int64
 	unit                 units.Unit
@@ -100,6 +101,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 	}
 
 	prog := Progress{
+		Name:      p.name,
 		Unit:      p.unit,
 		StartTime: p.startTime,
 		Processed: p.progress,
@@ -271,5 +273,12 @@ func (p *ProgressTracker) SetTimeSlots(slots int) *ProgressTracker {
 	p.timeSlots = slots
 	p.updatesW = nil
 	p.updatesT = nil
+	return p
+}
+
+func (p *ProgressTracker) SetName(name string) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
+	p.name = name
 	return p
 }

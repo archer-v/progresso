@@ -8,6 +8,7 @@ import (
 
 // Progress is the object sent back over the progress channel.
 type Progress struct {
+	Name      string        // The name of the tracker
 	Processed int64         // The amount of work performed (bytes transferred, for example)
 	Total     int64         // Total size of work (bytes to transfer for example). <= 0 if size is unknown.
 	Percent   float64       // If the size is known, the progress of the work in %
