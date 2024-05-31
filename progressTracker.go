@@ -92,8 +92,10 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 			return
 		}
 	}
+
+	curTime := time.Now()
 	if p.startTime.IsZero() {
-		p.startTime = time.Now()
+		p.startTime = curTime
 	}
 
 	prog := Progress{
@@ -114,7 +116,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 
 	// Calculate current speed based on the last `p.timeSlots` updates sent
 	p.updatesW[p.tsidx%p.timeSlots] = p.progress
-	p.updatesT[p.tsidx%p.timeSlots] = time.Now()
+	p.updatesT[p.tsidx%p.timeSlots] = curTime
 	p.tsidx++
 	if !p.updatesT[p.tsidx%p.timeSlots].IsZero() {
 
@@ -154,7 +156,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		// EOF or closed, we have to send this last message, and then close the chan
 		// Prevent sending the last message multiple times
 		if p.Channel != nil {
-			prog.StopTime = time.Now()
+			prog.StopTime = curTime
 			p.send(prog)
 			p.cleanup()
 		}
@@ -168,7 +170,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 	}
 
 	// do not send updates if the progress is the same as the previous one (except if it's the first message)
-	if progress == 0 && p.startTime != prog.StartTime {
+	if progress == 0 && p.startTime != curTime {
 		return
 	}
 	p.send(prog)
