@@ -60,9 +60,9 @@ func (p *ProgressTracker) Increment(work int64, data ...any) {
 	if work > 0 {
 		p.progress += work
 	}
-	// Throttle sending updated, limit to SetUpdateFreq - which should be 100ms
+	// Throttle sending updated, limit to updateFreq
 	// Always send when finished
-	if (time.Since(p.lastSent) < DefaultUpdateFreq) && ((p.size > 0) && (p.progress != p.size)) {
+	if (time.Since(p.lastSent) < p.updateFreq) && ((p.size > 0) && (p.progress != p.size)) {
 		return
 	}
 	if p.startTime.IsZero() {
