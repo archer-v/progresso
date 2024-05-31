@@ -27,14 +27,14 @@ func NewProgressTrackerWriter(w io.Writer, size int64) (*ProgressTrackerWriter, 
 	if !ok {
 		wc = getNopWriteCloser(w)
 	}
-	ret := &ProgressTrackerWriter{wc, *NewBytesProgressTracker().Size(size)}
+	ret := &ProgressTrackerWriter{wc, *NewBytesProgressTracker().SetSize(size)}
 	return ret, ret.Channel
 }
 
 // Write wraps the io.Writer Write function to also update the progress.
 func (p *ProgressTrackerWriter) Write(b []byte) (n int, err error) {
 	n, err = p.w.Write(b[0:])
-	p.Update(int64(n))
+	p.Increment(int64(n))
 	return
 }
 

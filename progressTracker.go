@@ -50,17 +50,17 @@ func NewBytesProgressTracker() *ProgressTracker {
 	return NewProgressTracker(bytes.BytesMetric)
 }
 
-// Update updates the progress tracker
+// Increment updates the progress tracker
 // with the given amount of work processed and fires the channel
-func (p *ProgressTracker) Update(written int64) {
+func (p *ProgressTracker) Increment(work int64, data ...any) {
 	if p.closed && p.Channel == nil {
 		// Nothing to do
 		return
 	}
-	if written > 0 {
-		p.progress += written
+	if work > 0 {
+		p.progress += work
 	}
-	// Throttle sending updated, limit to UpdateFreq - which should be 100ms
+	// Throttle sending updated, limit to SetUpdateFreq - which should be 100ms
 	// Always send when finished
 	if (time.Since(p.lastSent) < DefaultUpdateFreq) && ((p.size > 0) && (p.progress != p.size)) {
 		return
@@ -74,6 +74,10 @@ func (p *ProgressTracker) Update(written int64) {
 		StartTime: p.startTime,
 		Processed: p.progress,
 		Total:     p.size,
+	}
+
+	if data != nil && len(data) > 0 {
+		prog.Data = data[0]
 	}
 
 	// Calculate current speed based on the last `timeSlots` updates sent
@@ -119,7 +123,7 @@ func (p *ProgressTracker) Update(written int64) {
 	}
 
 	if p.updateGranule > 1 &&
-		(p.progress-written)/p.updateGranule == p.progress/p.updateGranule {
+		(p.progress-work)/p.updateGranule == p.progress/p.updateGranule {
 		// skip updating the progress if the granule is the same as the previous one
 		return
 	}
@@ -145,23 +149,23 @@ func (p *ProgressTracker) cleanup() {
 // Stop stops the progress tracker, and sends the last message
 func (p *ProgressTracker) Stop() {
 	p.closed = true
-	p.Update(-1)
+	p.Increment(-1)
 }
 
-// Size sets the total size of the work to be done
-func (p *ProgressTracker) Size(size int64) *ProgressTracker {
+// SetSize sets the total size of the work to be done
+func (p *ProgressTracker) SetSize(size int64) *ProgressTracker {
 	p.size = size
 	return p
 }
 
-// UpdateFreq sets the frequency at which to send updates
-func (p *ProgressTracker) UpdateFreq(freq time.Duration) *ProgressTracker {
+// SetUpdateFreq sets the frequency at which to send updates
+func (p *ProgressTracker) SetUpdateFreq(freq time.Duration) *ProgressTracker {
 	p.updateFreq = freq
 	return p
 }
 
-// UpdateGranule sets size of the granule of work at which to send updates
-func (p *ProgressTracker) UpdateGranule(granule int64) *ProgressTracker {
+// SetUpdateGranule sets size of the granule of work at which to send updates
+func (p *ProgressTracker) SetUpdateGranule(granule int64) *ProgressTracker {
 	p.updateGranule = granule
 	return p
 }

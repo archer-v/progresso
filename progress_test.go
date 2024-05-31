@@ -87,12 +87,12 @@ func TestPrintSize(t *testing.T) {
 }
 
 func TestIOProgress(t *testing.T) {
-	iop := NewBytesProgressTracker().Size(100 * bytes.MebiByte)
+	iop := NewBytesProgressTracker().SetSize(100 * bytes.MebiByte)
 	iop.progress = 50 * bytes.MebiByte
 	iop.updatesW[1] = 40 * bytes.MebiByte
 	iop.updatesT[1] = time.Now().Add(time.Second * -1)
 	iop.startTime = time.Now().Add(time.Second * -10)
-	go iop.Update(0)
+	go iop.Increment(0)
 	p := <-iop.Channel
 	t.Logf("P: %p\n", &p)
 	t.Logf("P: %s\n", p.String())

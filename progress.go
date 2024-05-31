@@ -8,15 +8,16 @@ import (
 
 // Progress is the object sent back over the progress channel.
 type Progress struct {
-	Processed int64         // The amount of work performed (bytes transfered, for example)
+	Processed int64         // The amount of work performed (bytes transferred, for example)
 	Total     int64         // Total size of work (bytes to transfer for example). <= 0 if size is unknown.
-	Percent   float64       // If the size is known, the progress of the transfer in %
-	SpeedAvg  int64         // Bytes/sec average over the entire transfer
-	Speed     int64         // Bytes/sec of the last few reads/writes
+	Percent   float64       // If the size is known, the progress of the work in %
+	SpeedAvg  int64         // Work/sec average over the entire work
+	Speed     int64         // Work/sec of the last few works
 	Unit      units.Unit    // The unit system
 	Remaining time.Duration // Estimated time remaining, only available if the size is known.
-	StartTime time.Time     // When the transfer was started
-	StopTime  time.Time     // only specified when the transfer is completed: when the transfer was stopped
+	StartTime time.Time     // When the work was started
+	StopTime  time.Time     // only specified when the work is completed: when the work was stopped
+	Data      any           // An additional user defined data associated with the progress
 }
 
 // String returns a string representation of the progress. It takes into account

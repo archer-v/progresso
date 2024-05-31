@@ -110,7 +110,7 @@ func TestProgressReader(t *testing.T) {
 func TestProgressReaderSize(t *testing.T) {
 	r, ch := NewProgressTrackerReader(getReader(bufSize), bufSize)
 	w := getWriter()
-	r.UpdateGranule(bufSize / 10)
+	r.SetUpdateGranule(bufSize / 10)
 	go readProgress(t, "TestReaderSize", ch)
 
 	io.Copy(w, r)
@@ -120,12 +120,12 @@ func TestProgressReaderSize(t *testing.T) {
 func TestProgressTrackerDistance(t *testing.T) {
 	r := NewProgressTracker(distance.DistanceMetric)
 
-	r.UpdateGranule(100).Size(2000)
+	r.SetUpdateGranule(100).SetSize(2000)
 	go readProgress(t, "TestDistance", r.Channel)
 
 	for i := 0; i < 200; i++ {
 		time.Sleep(throttleTime)
-		r.Update(10) // 10 meters
+		r.Increment(10) // 10 meters
 	}
 	t.Logf("done\n")
 }

@@ -17,7 +17,7 @@ an integer number.
 
 The package provides two methods to count the amount of work:
 *  wrappers around standard io.Reader and io.Writer objects, so anything that uses standard io.Reader/io.Writer objects can give you progress feedback
-*  Update(int) method to inform the tracker about amount of work directly
+*  Increment(int) method to inform the tracker about amount of work performed
 
 ProgressTracker sends back a Progress struct over a channel, 
 so a subscriber can receive the progress feedback.
@@ -45,13 +45,13 @@ type ProgressTracker struct {
 ```
 
 The  progresso.ProgressTracker object has two genereal methods: 
-* ```Update(int64)``` - updates the progress statement
+* ```Increment(int64)``` - updates the progress statement
 * ```Stop()``` - stops the tracker, and sends the last message
 
 and several setters to set configurable options:
-* ```Size(size int64)```
-* ```UpdateFreq(freq time.Duration)``` - sets the frequency of the updates over the channels
-* ```UpdateGranule(granule int64)``` - sets size of the granule of work at which to send updates
+* ```SetSize(size int64)```
+* ```SetUpdateFreq(freq time.Duration)``` - sets the frequency of the updates over the channels
+* ```SetUpdateGranule(granule int64)``` - sets size of the granule of work at which to send updates
 
 #### Constructors
 
@@ -74,6 +74,7 @@ type Progress struct {
     Remaining   time.Duration // Estimated time remaining, only available if the size is known.
     StartTime   time.Time     // When the transfer was started
     StopTime    time.Time     // only specified when the transfer is completed: when the transfer was stopped
+    Data        any  		  // An additional user defined data associated with the progress
 }
 
 ```
@@ -141,7 +142,7 @@ import (
 
 func movement(distance int64) {
   r := NewProgressTracker(distance.DistanceMetric)
-  r.UpdateGranule(100).Size(distance)
+  r.SetUpdateGranule(100).SetSize(distance)
   
   // Launch a Go-Routine reading from the progress channel
   go func() {
@@ -153,7 +154,7 @@ func movement(distance int64) {
   
   for i := 0; i < 200; i++ {
 	time.Sleep(20 * time.Millisecond)
-	r.Update(10) // move at 10 meters
+	r.Increment(10) // move at 10 meters
   }
 }
 ```

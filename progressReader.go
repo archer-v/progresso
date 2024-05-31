@@ -41,14 +41,14 @@ func NewProgressTrackerReader(r io.Reader, size int64) (*ProgressTrackerReader, 
 	if !ok {
 		rc = io.NopCloser(r)
 	}
-	ret := &ProgressTrackerReader{rc, *NewBytesProgressTracker().Size(size)}
+	ret := &ProgressTrackerReader{rc, *NewBytesProgressTracker().SetSize(size)}
 	return ret, ret.Channel
 }
 
 // Read wraps the io.Reader Read function to also update the progress.
 func (p *ProgressTrackerReader) Read(b []byte) (n int, err error) {
 	n, err = p.r.Read(b)
-	p.Update(int64(n))
+	p.Increment(int64(n))
 	return
 }
 
