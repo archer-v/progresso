@@ -52,17 +52,37 @@ func NewBytesProgressTracker() *ProgressTracker {
 
 // Increment updates the progress tracker
 // with the given amount of work processed and fires the channel
-func (p *ProgressTracker) Increment(work int64, data ...any) {
+// data is optional and will be set to the Data field in the progress object
+func (p *ProgressTracker) Increment(progress int64, data ...any) {
 	p.Lock()
 	defer p.Unlock()
+
+	p.increment(progress, data...)
+}
+
+// Update updates the tracker with new progress value
+// data is optional and will be set to the Data field in the progress object
+func (p *ProgressTracker) Update(progress int64, data ...any) {
+	p.Lock()
+	defer p.Unlock()
+	if progress > p.progress {
+		p.increment(progress-p.progress, data...)
+		return
+	}
+	// Updates in the past isn't allowed now
+}
+
+func (p *ProgressTracker) increment(progress int64, data ...any) {
 
 	if p.closed && p.Channel == nil {
 		// Nothing to do
 		return
 	}
-	if work > 0 {
-		p.progress += work
+
+	if progress > 0 {
+		p.progress += progress
 	}
+
 	// Throttle sending updated, limit to updateFreq
 	// Always send when finished
 	if (time.Since(p.lastSent) < p.updateFreq) && ((p.size > 0) && (p.progress != p.size)) {
@@ -126,21 +146,12 @@ func (p *ProgressTracker) Increment(work int64, data ...any) {
 	}
 
 	if p.updateGranule > 1 &&
-		(p.progress-work)/p.updateGranule == p.progress/p.updateGranule {
+		(p.progress-progress)/p.updateGranule == p.progress/p.updateGranule {
 		// skip updating the progress if the granule is the same as the previous one
 		return
 	}
 
 	p.send(prog)
-}
-
-// Update updates the tracker with new progress value
-func (p *ProgressTracker) Update(progress int64, data ...any) {
-	if progress > p.progress {
-		p.Increment(progress-p.progress, data...)
-		return
-	}
-	// Updates in the past isn't allowed now
 }
 
 func (p *ProgressTracker) cleanup() {
@@ -162,6 +173,8 @@ func (p *ProgressTracker) send(prog Progress) {
 }
 
 func (p *ProgressTracker) Reset() {
+	p.Lock()
+	defer p.Unlock()
 	p.progress = 0 // reset progress
 	p.startTime = time.Time{}
 	p.lastSent = time.Time{}
@@ -172,24 +185,32 @@ func (p *ProgressTracker) Reset() {
 
 // Stop stops the progress tracker, and sends the last message
 func (p *ProgressTracker) Stop() {
+	p.Lock()
+	defer p.Unlock()
 	p.closed = true
-	p.Increment(-1)
+	p.increment(-1)
 }
 
 // SetSize sets the total size of the work to be done
 func (p *ProgressTracker) SetSize(size int64) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
 	p.size = size
 	return p
 }
 
 // SetUpdateFreq sets the frequency at which to send updates
 func (p *ProgressTracker) SetUpdateFreq(freq time.Duration) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
 	p.updateFreq = freq
 	return p
 }
 
 // SetUpdateGranule sets size of the granule of work at which to send updates
 func (p *ProgressTracker) SetUpdateGranule(granule int64) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
 	p.updateGranule = granule
 	return p
 }
