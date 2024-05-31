@@ -11,9 +11,9 @@ const (
 	// DefaultUpdateFreq defines frequency of the updates over the channels
 	DefaultUpdateFreq    = 100 * time.Millisecond
 	DefaultUpdateGranule = 1
-	// timeSlots defines the number of slots in the time slice
-	// used to calculate the speed and estimated time to completion
-	timeSlots = 5
+	// DefaultTimeSlots defines the number of slots in the time slice
+	// used to calculate an instant speed
+	DefaultTimeSlots = 5
 )
 
 type ProgressTracker struct {
@@ -26,9 +26,10 @@ type ProgressTracker struct {
 	lastSent      time.Time
 	updatesW      []int64     // list of last work updates
 	updatesT      []time.Time // list of last time updates
+	timeSlots     int
 	updateFreq    time.Duration
 	updateGranule int64
-	ts            int // time slot index
+	tsidx         int // time slot index
 	sync.Mutex
 }
 
@@ -40,6 +41,7 @@ func NewProgressTracker(unit units.Unit) (p *ProgressTracker) {
 		size:          -1,
 		updateFreq:    DefaultUpdateFreq,
 		updateGranule: DefaultUpdateGranule,
+		timeSlots:     DefaultTimeSlots,
 	}
 	p.Reset()
 	return
@@ -85,8 +87,10 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 
 	// Throttle sending updated, limit to updateFreq
 	// Always send when finished
-	if (time.Since(p.lastSent) < p.updateFreq) && ((p.size > 0) && (p.progress != p.size)) {
-		return
+	if time.Since(p.lastSent) < p.updateFreq {
+		if (p.size == 0) || (p.size > 0 && p.progress < p.size) {
+			return
+		}
 	}
 	if p.startTime.IsZero() {
 		p.startTime = time.Now()
@@ -103,13 +107,16 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		prog.Data = data[0]
 	}
 
-	// Calculate current speed based on the last `timeSlots` updates sent
-	p.updatesW[p.ts%timeSlots] = p.progress
-	p.updatesT[p.ts%timeSlots] = time.Now()
-	p.ts++
-	if !p.updatesT[p.ts%timeSlots].IsZero() {
-		// Calculate the average speed of the last ~2 seconds
-		prog.Speed = int64((float64(p.progress-p.updatesW[p.ts%timeSlots]) / float64(time.Since(p.updatesT[p.ts%timeSlots]))) * float64(time.Second))
+	if p.updatesW == nil {
+		p.updatesW = make([]int64, p.timeSlots)
+		p.updatesT = make([]time.Time, p.timeSlots)
+	}
+
+	// Calculate current speed based on the last `DefaultTimeSlots` updates sent
+	p.updatesW[p.tsidx%DefaultTimeSlots] = p.progress
+	p.updatesT[p.tsidx%DefaultTimeSlots] = time.Now()
+	p.tsidx++
+	if !p.updatesT[p.tsidx%DefaultTimeSlots].IsZero() {
 
 		// Calculate the average speed since starting the transfer
 		tp := time.Since(p.startTime)
@@ -118,11 +125,20 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		} else {
 			prog.SpeedAvg = -1
 		}
+
+		// Calculate the remaining time
 		if p.size > 0 && prog.SpeedAvg > 0 {
 			prog.Remaining = time.Duration((float64(p.size-p.progress) / float64(prog.SpeedAvg)) * float64(time.Second))
 		} else {
 			prog.Remaining = -1
 		}
+
+		// Calculate the average speed of the last updateFreq * DefaultTimeSlots seconds
+		prog.Speed = int64(
+			(float64(p.progress-p.updatesW[p.tsidx%DefaultTimeSlots]) /
+				float64(time.Since(p.updatesT[p.tsidx%DefaultTimeSlots]))) *
+				float64(time.Second))
+
 	} else {
 		prog.Speed = -1
 		prog.SpeedAvg = -1
@@ -178,9 +194,9 @@ func (p *ProgressTracker) Reset() {
 	p.progress = 0 // reset progress
 	p.startTime = time.Time{}
 	p.lastSent = time.Time{}
-	p.updatesW = make([]int64, timeSlots)
-	p.updatesT = make([]time.Time, timeSlots)
-	p.ts = 0
+	p.updatesW = nil
+	p.updatesT = nil
+	p.tsidx = 0
 }
 
 // Stop stops the progress tracker, and sends the last message
@@ -212,5 +228,15 @@ func (p *ProgressTracker) SetUpdateGranule(granule int64) *ProgressTracker {
 	p.Lock()
 	defer p.Unlock()
 	p.updateGranule = granule
+	return p
+}
+
+// SetTimeSlots sets the number of time slots to calculate an instant speed
+func (p *ProgressTracker) SetTimeSlots(slots int) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
+	p.timeSlots = slots
+	p.updatesW = nil
+	p.updatesT = nil
 	return p
 }
