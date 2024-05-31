@@ -112,11 +112,11 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		p.updatesT = make([]time.Time, p.timeSlots)
 	}
 
-	// Calculate current speed based on the last `DefaultTimeSlots` updates sent
-	p.updatesW[p.tsidx%DefaultTimeSlots] = p.progress
-	p.updatesT[p.tsidx%DefaultTimeSlots] = time.Now()
+	// Calculate current speed based on the last `p.timeSlots` updates sent
+	p.updatesW[p.tsidx%p.timeSlots] = p.progress
+	p.updatesT[p.tsidx%p.timeSlots] = time.Now()
 	p.tsidx++
-	if !p.updatesT[p.tsidx%DefaultTimeSlots].IsZero() {
+	if !p.updatesT[p.tsidx%p.timeSlots].IsZero() {
 
 		// Calculate the average speed since starting the transfer
 		tp := time.Since(p.startTime)
@@ -133,10 +133,10 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 			prog.Remaining = -1
 		}
 
-		// Calculate the average speed of the last updateFreq * DefaultTimeSlots seconds
+		// Calculate the average speed of the last updateFreq * p.timeSlots seconds
 		prog.Speed = int64(
-			(float64(p.progress-p.updatesW[p.tsidx%DefaultTimeSlots]) /
-				float64(time.Since(p.updatesT[p.tsidx%DefaultTimeSlots]))) *
+			(float64(p.progress-p.updatesW[p.tsidx%p.timeSlots]) /
+				float64(time.Since(p.updatesT[p.tsidx%p.timeSlots]))) *
 				float64(time.Second))
 
 	} else {
@@ -167,6 +167,10 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		return
 	}
 
+	// do not send updates if the progress is the same as the previous one (except if it's the first message)
+	if progress == 0 && p.startTime != prog.StartTime {
+		return
+	}
 	p.send(prog)
 }
 
