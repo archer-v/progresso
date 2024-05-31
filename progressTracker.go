@@ -17,19 +17,20 @@ const (
 )
 
 type ProgressTracker struct {
-	size          int64
-	progress      int64
-	unit          units.Unit
-	Channel       chan Progress
-	closed        bool
-	startTime     time.Time
-	lastSent      time.Time
-	updatesW      []int64     // list of last work updates
-	updatesT      []time.Time // list of last time updates
-	timeSlots     int
-	updateFreq    time.Duration
-	updateGranule int64
-	tsidx         int // time slot index
+	size                 int64
+	progress             int64
+	unit                 units.Unit
+	Channel              chan Progress
+	closed               bool
+	startTime            time.Time
+	lastSent             time.Time
+	updatesW             []int64     // list of last work updates
+	updatesT             []time.Time // list of last time updates
+	timeSlots            int
+	updateFreq           time.Duration
+	updateGranule        int64
+	updateGranulePercent int
+	updatesCounter       int // counter of updates
 	sync.Mutex
 }
 
@@ -115,10 +116,10 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 	}
 
 	// Calculate current speed based on the last `p.timeSlots` updates sent
-	p.updatesW[p.tsidx%p.timeSlots] = p.progress
-	p.updatesT[p.tsidx%p.timeSlots] = curTime
-	p.tsidx++
-	if !p.updatesT[p.tsidx%p.timeSlots].IsZero() {
+	p.updatesW[p.updatesCounter%p.timeSlots] = p.progress
+	p.updatesT[p.updatesCounter%p.timeSlots] = curTime
+	p.updatesCounter++
+	if !p.updatesT[p.updatesCounter%p.timeSlots].IsZero() {
 
 		// Calculate the average speed since starting the transfer
 		tp := time.Since(p.startTime)
@@ -137,8 +138,8 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 
 		// Calculate the average speed of the last updateFreq * p.timeSlots seconds
 		prog.Speed = int64(
-			(float64(p.progress-p.updatesW[p.tsidx%p.timeSlots]) /
-				float64(time.Since(p.updatesT[p.tsidx%p.timeSlots]))) *
+			(float64(p.progress-p.updatesW[p.updatesCounter%p.timeSlots]) /
+				float64(time.Since(p.updatesT[p.updatesCounter%p.timeSlots]))) *
 				float64(time.Second))
 
 	} else {
@@ -163,15 +164,31 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		return
 	}
 
-	if p.updateGranule > 1 &&
-		(p.progress-progress)/p.updateGranule == p.progress/p.updateGranule {
-		// skip updating the progress if the granule is the same as the previous one
-		return
-	}
+	if p.updatesCounter > 1 {
+		// do not send updates if the progress is the same as
+		// the previous one (except if it's the first message)
+		if progress == 0 {
+			return
+		}
 
-	// do not send updates if the progress is the same as the previous one (except if it's the first message)
-	if progress == 0 && p.startTime != curTime {
-		return
+		// skip updating the progress if the granule is the same as the previous one
+		if p.updateGranule > 1 {
+			// previous progress
+			pp := p.updatesW[(p.updatesCounter-1)%p.timeSlots]
+			if (p.progress-pp)/p.updateGranule == p.progress/p.updateGranule {
+				return
+			}
+		}
+
+		// skip updating the progress if the granule in percent is the same as the previous one
+		if p.size > 0 && p.updateGranulePercent > 0 {
+			pp := p.updatesW[(p.updatesCounter-1)%p.timeSlots]
+			// prev percent
+			ppt := int(float64(int64((float64(pp)/float64(p.size))*10000.0)) / 100.0)
+			if (int(prog.Percent)-ppt)/p.updateGranulePercent == int(prog.Percent)/p.updateGranulePercent {
+				return
+			}
+		}
 	}
 	p.send(prog)
 }
@@ -202,7 +219,7 @@ func (p *ProgressTracker) Reset() {
 	p.lastSent = time.Time{}
 	p.updatesW = nil
 	p.updatesT = nil
-	p.tsidx = 0
+	p.updatesCounter = 0
 }
 
 // Stop stops the progress tracker, and sends the last message
@@ -234,6 +251,14 @@ func (p *ProgressTracker) SetUpdateGranule(granule int64) *ProgressTracker {
 	p.Lock()
 	defer p.Unlock()
 	p.updateGranule = granule
+	return p
+}
+
+// SetUpdateGranulePercent sets updates interval in percent of work at which to send updates
+func (p *ProgressTracker) SetUpdateGranulePercent(percent int) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
+	p.updateGranulePercent = percent
 	return p
 }
 
