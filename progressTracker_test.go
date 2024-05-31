@@ -81,6 +81,23 @@ func TestProgressWriter(t *testing.T) {
 	go readProgress(t, "TestWriter", ch, done)
 
 	io.Copy(w, r)
+	w.Close()
+	<-done
+	t.Logf("Copy done\n")
+}
+
+// TestProgressWriterFromTracker is an example of using the progresso package with an
+// io.Writer without knowing the amount of bytes to be processed.
+func TestProgressWriterFromTracker(t *testing.T) {
+	r := getReader(bufSize)
+	p := NewBytesProgressTracker()
+	w := p.GetWriter(getWriter(), -1)
+
+	done := make(chan struct{})
+	go readProgress(t, "TestWriter", w.Channel, done)
+
+	io.Copy(w, r)
+	w.Close()
 	<-done
 	t.Logf("Copy done\n")
 }
@@ -109,6 +126,7 @@ func TestProgressReader(t *testing.T) {
 	go readProgress(t, "TestReader", ch, done)
 
 	io.Copy(w, r)
+	r.Close()
 	<-done
 	t.Logf("Copy done\n")
 }
@@ -128,7 +146,7 @@ func TestProgressReaderSize(t *testing.T) {
 }
 
 func TestProgressTrackerDistance(t *testing.T) {
-	r := NewProgressTracker(distance.DistanceMetric)
+	r := NewProgressTracker().SetUnit(distance.DistanceMetric)
 
 	r.SetUpdateGranule(100).SetSize(2000)
 	done := make(chan struct{})
@@ -143,7 +161,7 @@ func TestProgressTrackerDistance(t *testing.T) {
 }
 
 func TestProgressTrackerDistancePercentGranule(t *testing.T) {
-	r := NewProgressTracker(distance.DistanceMetric)
+	r := NewProgressTracker().SetUnit(distance.DistanceMetric)
 
 	r.SetUpdateGranulePercent(10).SetSize(2000)
 	done := make(chan struct{})

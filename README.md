@@ -44,14 +44,22 @@ type ProgressTracker struct {
 }
 ```
 
-The  progresso.ProgressTracker object has two genereal methods: 
-* ```Increment(int64)``` - updates the progress statement
+The  progresso.ProgressTracker object has methods: 
+* ```Increment(int64, any)``` - increments the progress at the given amount 
+* ```Update(int64, any)``` - updates the tracker with new progress value
+* ```Reset()``` - resets the progress tracker to an initial state
 * ```Stop()``` - stops the tracker, and sends the last message
+* ```GetWriter``` - returns a ProgressTrackerWriter for the progress tracker
+* ```GetReader``` - returns a ProgressTrackerReader for the progress tracker
 
 and several setters to set configurable options:
 * ```SetSize(size int64)```
 * ```SetUpdateFreq(freq time.Duration)``` - sets the frequency of the updates over the channels
-* ```SetUpdateGranule(granule int64)``` - sets size of the granule of work at which to send updates
+* ```SetUpdateGranule(granule int64)``` - sets updates interval in units of work at which to send updates
+* ```SetUpdateGranulePercent``` - sets updates interval in percent of work at which to send updates
+* ```SetUnit``` - sets the measurement unit of the progress tracker
+* ```SetName``` - sets the name of the progress tracker
+* ```SetTimeSlots``` - sets the number of time slots used to calculate an instant speed (default 5)
 
 #### Constructors
 
@@ -65,6 +73,7 @@ and several setters to set configurable options:
 
 ```
 type Progress struct {
+    Name        string        // The name of the tracker  
     Processed   int64         // The amount of work performed (bytes transfered, for example)
     Total       int64         // Total size of work (bytes to transfer for example). <= 0 if size is unknown.
     Percent     float64       // If the size is known, the progress of the transfer in %

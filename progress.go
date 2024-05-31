@@ -14,7 +14,7 @@ type Progress struct {
 	Percent   float64       // If the size is known, the progress of the work in %
 	SpeedAvg  int64         // Work/sec average over the entire work
 	Speed     int64         // Work/sec of the last few works
-	Unit      units.Unit    // The unit system
+	Unit      units.Unit    // The measurement unit system
 	Remaining time.Duration // Estimated time remaining, only available if the size is known.
 	StartTime time.Time     // When the work was started
 	StopTime  time.Time     // only specified when the work is completed: when the work was stopped

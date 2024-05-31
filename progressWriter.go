@@ -14,12 +14,16 @@ func getNopWriteCloser(w io.Writer) io.WriteCloser {
 // feedback over a channel
 type ProgressTrackerWriter struct {
 	w io.WriteCloser
-	ProgressTracker
+	*ProgressTracker
 }
 
 // NewProgressTrackerWriter creates a new ProgressTrackerWriter object based on the io.Writer and the
 // size you specified. Specify a size <= 0 if you don't know the size.
 func NewProgressTrackerWriter(w io.Writer, size int64) (*ProgressTrackerWriter, <-chan Progress) {
+	return newProgressTrackerWriter(w, size, NewBytesProgressTracker().SetSize(size))
+}
+
+func newProgressTrackerWriter(w io.Writer, size int64, tracker *ProgressTracker) (*ProgressTrackerWriter, <-chan Progress) {
 	if w == nil {
 		return nil, nil
 	}
@@ -27,7 +31,10 @@ func NewProgressTrackerWriter(w io.Writer, size int64) (*ProgressTrackerWriter, 
 	if !ok {
 		wc = getNopWriteCloser(w)
 	}
-	ret := &ProgressTrackerWriter{wc, *NewBytesProgressTracker().SetSize(size)}
+	if tracker == nil {
+		tracker = NewBytesProgressTracker().SetSize(size)
+	}
+	ret := &ProgressTrackerWriter{wc, tracker}
 	return ret, ret.Channel
 }
 

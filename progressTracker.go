@@ -3,6 +3,7 @@ package progresso
 import (
 	"github.com/archer-v/progresso/units"
 	"github.com/archer-v/progresso/units/bytes"
+	"io"
 	"sync"
 	"time"
 )
@@ -36,10 +37,9 @@ type ProgressTracker struct {
 }
 
 // NewProgressTracker creates a new progress tracker with the given measurement unit
-func NewProgressTracker(unit units.Unit) (p *ProgressTracker) {
+func NewProgressTracker() (p *ProgressTracker) {
 	p = &ProgressTracker{
 		Channel:       make(chan Progress),
-		unit:          unit,
 		size:          -1,
 		updateFreq:    DefaultUpdateFreq,
 		updateGranule: DefaultUpdateGranule,
@@ -51,12 +51,12 @@ func NewProgressTracker(unit units.Unit) (p *ProgressTracker) {
 
 // NewBytesProgressTracker creates a new progress tracker with bytes unit
 func NewBytesProgressTracker() *ProgressTracker {
-	return NewProgressTracker(bytes.BytesMetric)
+	return NewProgressTracker().SetUnit(bytes.BytesMetric)
 }
 
-// Increment updates the progress tracker
-// with the given amount of work processed and fires the channel
-// data is optional and will be set to the Data field in the progress object
+// Increment increments the progress tracker
+// at the given amount of work processed and fires the channel
+// data is optional and will be exposed as the Data field in the progress object
 func (p *ProgressTracker) Increment(progress int64, data ...any) {
 	p.Lock()
 	defer p.Unlock()
@@ -65,7 +65,7 @@ func (p *ProgressTracker) Increment(progress int64, data ...any) {
 }
 
 // Update updates the tracker with new progress value
-// data is optional and will be set to the Data field in the progress object
+// data is optional and will be exposed as the Data field in the progress object
 func (p *ProgressTracker) Update(progress int64, data ...any) {
 	p.Lock()
 	defer p.Unlock()
@@ -215,6 +215,7 @@ func (p *ProgressTracker) send(prog Progress) {
 	}
 }
 
+// Reset resets the progress tracker to an initial state
 func (p *ProgressTracker) Reset() {
 	p.Lock()
 	defer p.Unlock()
@@ -232,6 +233,18 @@ func (p *ProgressTracker) Stop() {
 	defer p.Unlock()
 	p.closed = true
 	p.increment(-1)
+}
+
+// GetWriter returns a ProgressTrackerWriter for the progress tracker
+func (p *ProgressTracker) GetWriter(w io.Writer, size int64) *ProgressTrackerWriter {
+	t, _ := newProgressTrackerWriter(w, size, p)
+	return t
+}
+
+// GetReader returns a ProgressTrackerReader for the progress tracker
+func (p *ProgressTracker) GetReader(r io.Reader, size int64) *ProgressTrackerReader {
+	t, _ := newProgressTrackerReader(r, size, p)
+	return t
 }
 
 // SetSize sets the total size of the work to be done
@@ -266,7 +279,7 @@ func (p *ProgressTracker) SetUpdateGranulePercent(percent int) *ProgressTracker 
 	return p
 }
 
-// SetTimeSlots sets the number of time slots to calculate an instant speed
+// SetTimeSlots sets the number of time slots used to calculate an instant speed
 func (p *ProgressTracker) SetTimeSlots(slots int) *ProgressTracker {
 	p.Lock()
 	defer p.Unlock()
@@ -276,9 +289,18 @@ func (p *ProgressTracker) SetTimeSlots(slots int) *ProgressTracker {
 	return p
 }
 
+// SetName sets the name of the progress tracker
 func (p *ProgressTracker) SetName(name string) *ProgressTracker {
 	p.Lock()
 	defer p.Unlock()
 	p.name = name
+	return p
+}
+
+// SetUnit sets the measurement unit of the progress tracker
+func (p *ProgressTracker) SetUnit(u units.Unit) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
+	p.unit = u
 	return p
 }

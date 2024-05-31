@@ -9,7 +9,7 @@ import (
 // feedback over a channel
 type ProgressTrackerReader struct {
 	r io.ReadCloser
-	ProgressTracker
+	*ProgressTracker
 }
 
 // NewProgressTrackerFileReader creates a new ProgressTrackerReader based on a file. It teturns a
@@ -34,6 +34,10 @@ func NewProgressTrackerFileReader(file string) (*ProgressTrackerReader, <-chan P
 // NewProgressTrackerReader creates a new ProgressTrackerReader object based on the io.Reader and the
 // size you specified. Specify a size <= 0 if you don't know the size.
 func NewProgressTrackerReader(r io.Reader, size int64) (*ProgressTrackerReader, <-chan Progress) {
+	return newProgressTrackerReader(r, size, NewBytesProgressTracker().SetSize(size))
+}
+
+func newProgressTrackerReader(r io.Reader, size int64, tracker *ProgressTracker) (*ProgressTrackerReader, <-chan Progress) {
 	if r == nil {
 		return nil, nil
 	}
@@ -41,7 +45,12 @@ func NewProgressTrackerReader(r io.Reader, size int64) (*ProgressTrackerReader, 
 	if !ok {
 		rc = io.NopCloser(r)
 	}
-	ret := &ProgressTrackerReader{rc, *NewBytesProgressTracker().SetSize(size)}
+
+	if tracker == nil {
+		tracker = NewBytesProgressTracker().SetSize(size)
+	}
+
+	ret := &ProgressTrackerReader{rc, tracker}
 	return ret, ret.Channel
 }
 
