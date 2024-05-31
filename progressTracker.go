@@ -3,6 +3,7 @@ package progresso
 import (
 	"github.com/archer-v/progresso/units"
 	"github.com/archer-v/progresso/units/bytes"
+	"sync"
 	"time"
 )
 
@@ -23,26 +24,25 @@ type ProgressTracker struct {
 	closed        bool
 	startTime     time.Time
 	lastSent      time.Time
-	updatesW      []int64
-	updatesT      []time.Time
+	updatesW      []int64     // list of last work updates
+	updatesT      []time.Time // list of last time updates
 	updateFreq    time.Duration
 	updateGranule int64
-	ts            int
+	ts            int // time slot index
+	sync.Mutex
 }
 
 // NewProgressTracker creates a new progress tracker with the given measurement unit
-func NewProgressTracker(unit units.Unit) *ProgressTracker {
-	return &ProgressTracker{
+func NewProgressTracker(unit units.Unit) (p *ProgressTracker) {
+	p = &ProgressTracker{
 		Channel:       make(chan Progress),
 		unit:          unit,
 		size:          -1,
 		updateFreq:    DefaultUpdateFreq,
 		updateGranule: DefaultUpdateGranule,
-		startTime:     time.Time{},
-		lastSent:      time.Time{},
-		updatesW:      make([]int64, timeSlots),
-		updatesT:      make([]time.Time, timeSlots),
 	}
+	p.Reset()
+	return
 }
 
 // NewBytesProgressTracker creates a new progress tracker with bytes unit
@@ -53,6 +53,9 @@ func NewBytesProgressTracker() *ProgressTracker {
 // Increment updates the progress tracker
 // with the given amount of work processed and fires the channel
 func (p *ProgressTracker) Increment(work int64, data ...any) {
+	p.Lock()
+	defer p.Unlock()
+
 	if p.closed && p.Channel == nil {
 		// Nothing to do
 		return
@@ -116,7 +119,7 @@ func (p *ProgressTracker) Increment(work int64, data ...any) {
 		// Prevent sending the last message multiple times
 		if p.Channel != nil {
 			prog.StopTime = time.Now()
-			p.Channel <- prog
+			p.send(prog)
 			p.cleanup()
 		}
 		return
@@ -128,14 +131,16 @@ func (p *ProgressTracker) Increment(work int64, data ...any) {
 		return
 	}
 
-	// Don't force send, only send when it would not block, the chan is non-buffered
-	select {
-	case p.Channel <- prog:
-		// update last sent values
-		p.lastSent = time.Now()
-	default:
-	}
+	p.send(prog)
+}
 
+// Update updates the tracker with new progress value
+func (p *ProgressTracker) Update(progress int64, data ...any) {
+	if progress > p.progress {
+		p.Increment(progress-p.progress, data...)
+		return
+	}
+	// Updates in the past isn't allowed now
 }
 
 func (p *ProgressTracker) cleanup() {
@@ -144,6 +149,25 @@ func (p *ProgressTracker) cleanup() {
 		close(p.Channel)
 		p.Channel = nil
 	}
+}
+
+func (p *ProgressTracker) send(prog Progress) {
+	// Don't force send, only send when it would not block, the chan is non-buffered
+	select {
+	case p.Channel <- prog:
+		// update last sent values
+		p.lastSent = time.Now()
+	default:
+	}
+}
+
+func (p *ProgressTracker) Reset() {
+	p.progress = 0 // reset progress
+	p.startTime = time.Time{}
+	p.lastSent = time.Time{}
+	p.updatesW = make([]int64, timeSlots)
+	p.updatesT = make([]time.Time, timeSlots)
+	p.ts = 0
 }
 
 // Stop stops the progress tracker, and sends the last message
