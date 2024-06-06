@@ -90,7 +90,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 	// Throttle sending updated, limit to updateFreq
 	// Always send when finished
 	if time.Since(p.lastSent) < p.updateFreq && !p.closed {
-		if (p.size == 0) || (p.size > 0 && p.progress < p.size) {
+		if (p.size <= 0) || (p.size > 0 && p.progress < p.size) {
 			return
 		}
 	}
