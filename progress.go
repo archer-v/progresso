@@ -8,17 +8,17 @@ import (
 
 // Progress is the object sent back over the progress channel.
 type Progress struct {
-	Name      string        // The name of the tracker
-	Processed int64         // The amount of work performed (bytes transferred, for example)
-	Total     int64         // Total size of work (bytes to transfer for example). <= 0 if size is unknown.
-	Percent   float64       // If the size is known, the progress of the work in %
-	SpeedAvg  int64         // Work/sec average over the entire work
-	Speed     int64         // Work/sec of the last few works
-	Unit      units.Unit    // The measurement unit system
-	Remaining time.Duration // Estimated time remaining, only available if the size is known.
-	StartTime time.Time     // When the work was started
-	StopTime  time.Time     // only specified when the work is completed: when the work was stopped
-	Data      any           // An additional user defined data associated with the progress
+	Name      string        `json:"name"`       // The name of the tracker
+	Processed int64         `json:"processed"`  // The amount of work performed (bytes transferred, for example)
+	Total     int64         `json:"total"`      // Total size of work (bytes to transfer for example). <= 0 if size is unknown.
+	Percent   float64       `json:"percent"`    // If the size is known, the progress of the work in %
+	SpeedAvg  int64         `json:"speed_avg"`  // Work/sec average over the entire work
+	Speed     int64         `json:"speed"`      // Work/sec of the last few works
+	Unit      units.Unit    `json:"unit"`       // The measurement unit system
+	Remaining time.Duration `json:"remaining"`  // Estimated time remaining, only available if the size is known.
+	StartTime time.Time     `json:"start_time"` // When the work was started
+	StopTime  time.Time     `json:"stop_time"`  // only specified when the work is completed: when the work was stopped
+	Data      any           `json:"data"`       // An additional user defined data associated with the progress
 }
 
 // String returns a string representation of the progress. It takes into account

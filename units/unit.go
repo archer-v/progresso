@@ -9,11 +9,11 @@ const (
 
 // Unit is a structure representing a unit standard
 type Unit struct {
-	Size       int64    // The size of one unit
-	Name       string   // The name of the unit standard
-	Multiplier int64    // The multiplier used by the unit standard
-	Names      []string // The names used by the unit standard
-	Shorts     []string // The shortened names used by the unit standard
+	Size       int64    `json:"-"`    // The size of one unit
+	Name       string   `json:"name"` // The name of the unit standard
+	Multiplier int64    `json:"-"`    // The multiplier used by the unit standard
+	Names      []string `json:"-"`    // The names used by the unit standard
+	Shorts     []string `json:"-"`    // The shortened names used by the unit standard
 }
 
 func (ss Unit) getUnit(size int64) (divider int64, name, short string) {
