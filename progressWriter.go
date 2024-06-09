@@ -32,7 +32,10 @@ func newProgressTrackerWriter(w io.Writer, size int64, tracker *ProgressTracker)
 		wc = getNopWriteCloser(w)
 	}
 	if tracker == nil {
-		tracker = NewBytesProgressTracker().SetSize(size)
+		tracker = NewBytesProgressTracker()
+	}
+	if size >= 0 {
+		tracker.SetSize(size)
 	}
 	ret := &ProgressTrackerWriter{wc, tracker}
 	return ret, ret.Channel

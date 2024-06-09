@@ -47,7 +47,11 @@ func newProgressTrackerReader(r io.Reader, size int64, tracker *ProgressTracker)
 	}
 
 	if tracker == nil {
-		tracker = NewBytesProgressTracker().SetSize(size)
+		tracker = NewBytesProgressTracker()
+	}
+
+	if size >= 0 {
+		tracker.SetSize(size)
 	}
 
 	ret := &ProgressTrackerReader{rc, tracker}
