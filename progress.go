@@ -18,6 +18,8 @@ type Progress struct {
 	Remaining time.Duration `json:"remaining"`  // Estimated time remaining, only available if the size is known.
 	StartTime time.Time     `json:"start_time"` // When the work was started
 	StopTime  time.Time     `json:"stop_time"`  // only specified when the work is completed: when the work was stopped
+	Finished  bool          `json:"finished" `  // If the progress was stopped
+	Completed bool          `json:"completed" ` // If the progress was completed
 	Data      any           `json:"data"`       // An additional user defined data associated with the progress
 }
 

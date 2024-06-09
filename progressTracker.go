@@ -159,8 +159,10 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 	if p.closed || (p.size >= 0 && p.progress >= p.size) {
 		// EOF or closed, we have to send this last message, and then close the chan
 		// Prevent sending the last message multiple times
+		prog.Completed = true
 		if p.Channel != nil {
 			prog.StopTime = curTime
+			prog.Finished = true
 			p.send(prog)
 			p.cleanup()
 		}
@@ -177,7 +179,8 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 			return
 		}
 
-		// skip updating the progress if the granule is the same as the previous one
+		// skip updating the progress if the granule
+		// is the same as the previous one
 		if p.updateGranule > 1 {
 			// previous progress
 			if pp/p.updateGranule == p.progress/p.updateGranule {
@@ -185,7 +188,8 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 			}
 		}
 
-		// skip updating the progress if the granule in percent is the same as the previous one
+		// skip updating the progress if the update granule (in percent)
+		// is the same as the previous one
 		if p.size > 0 && p.updateGranulePercent > 0 {
 			// prev percent
 			ppt := int(float64(int64((float64(pp)/float64(p.size))*10000.0)) / 100.0)
