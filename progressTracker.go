@@ -243,11 +243,11 @@ func (p *ProgressTracker) Reset() {
 }
 
 // Stop stops the progress tracker, and sends the last message
-func (p *ProgressTracker) Stop() {
+func (p *ProgressTracker) Stop() Progress {
 	p.Lock()
 	defer p.Unlock()
 	p.closed = true
-	p.increment(-1)
+	return p.increment(-1)
 }
 
 // GetWriter returns a ProgressTrackerWriter for the progress tracker
