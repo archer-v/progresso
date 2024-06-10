@@ -58,6 +58,7 @@ and several setters to set configurable options:
 * ```SetUpdateGranule(granule int64)``` - sets updates interval in units of work at which to send updates
 * ```SetUpdateGranulePercent``` - sets updates interval in percent of work at which to send updates
 * ```SetUnit``` - sets the measurement unit of the progress tracker
+* ```SetBlock``` - sets blocking write to the Channel to prevent possible lost of messages if channel isn't reading state
 * ```SetName``` - sets the name of the progress tracker
 * ```SetTimeSlots``` - sets the number of time slots used to calculate an instant speed (default 5)
 

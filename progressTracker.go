@@ -21,6 +21,7 @@ type ProgressTracker struct {
 	name                 string
 	size                 int64
 	progress             int64
+	block                bool
 	unit                 units.Unit
 	Channel              chan Progress
 	closed               bool
@@ -210,12 +211,16 @@ func (p *ProgressTracker) cleanup() {
 }
 
 func (p *ProgressTracker) send(prog Progress) {
-	// Don't force send, only send when it would not block, the chan is non-buffered
-	select {
-	case p.Channel <- prog:
-		// update last sent values
-		p.lastSent = time.Now()
-	default:
+	if p.block {
+		p.Channel <- prog
+	} else {
+		// Don't force send, only send when it would not block, the chan is non-buffered
+		select {
+		case p.Channel <- prog:
+			// update last sent values
+			p.lastSent = time.Now()
+		default:
+		}
 	}
 }
 
@@ -306,5 +311,16 @@ func (p *ProgressTracker) SetUnit(u units.Unit) *ProgressTracker {
 	p.Lock()
 	defer p.Unlock()
 	p.unit = u
+	return p
+}
+
+// SetBlock sets blocking write to the Channel
+// to prevent possible messages lost if channel isn't reading state
+// use it carefully cause possible can lead to block Update / Increment
+// methods if the channel is full
+func (p *ProgressTracker) SetBlock(b bool) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
+	p.block = b
 	return p
 }
