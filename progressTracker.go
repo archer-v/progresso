@@ -187,7 +187,8 @@ func (p *ProgressTracker) curProgress() (progress Progress) {
 		progress.Remaining = -1
 	}
 
-	if !p.updatesT[p.updatesCounter%p.timeSlots].IsZero() {
+	if p.updatesT != nil &&
+		!p.updatesT[p.updatesCounter%p.timeSlots].IsZero() {
 		// Calculate the average speed of the last updateFreq * p.timeSlots seconds
 		progress.Speed = int64(
 			(float64(p.progress-p.updatesW[p.updatesCounter%p.timeSlots]) /
