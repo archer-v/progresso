@@ -73,7 +73,7 @@ func (p *ProgressTracker) Update(progress int64, data ...any) (prog Progress) {
 	if progress > p.progress {
 		return p.increment(progress-p.progress, data...)
 	}
-	return
+	return p.curProgress()
 	// Updates in the past isn't allowed now
 }
 
