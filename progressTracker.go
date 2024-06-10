@@ -58,26 +58,26 @@ func NewBytesProgressTracker() *ProgressTracker {
 // Increment increments the progress tracker
 // at the given amount of work processed and fires the channel
 // data is optional and will be exposed as the Data field in the progress object
-func (p *ProgressTracker) Increment(progress int64, data ...any) {
+func (p *ProgressTracker) Increment(progress int64, data ...any) (prog Progress) {
 	p.Lock()
 	defer p.Unlock()
 
-	p.increment(progress, data...)
+	return p.increment(progress, data...)
 }
 
 // Update updates the tracker with new progress value
 // data is optional and will be exposed as the Data field in the progress object
-func (p *ProgressTracker) Update(progress int64, data ...any) {
+func (p *ProgressTracker) Update(progress int64, data ...any) (prog Progress) {
 	p.Lock()
 	defer p.Unlock()
 	if progress > p.progress {
-		p.increment(progress-p.progress, data...)
-		return
+		return p.increment(progress-p.progress, data...)
 	}
+	return
 	// Updates in the past isn't allowed now
 }
 
-func (p *ProgressTracker) increment(progress int64, data ...any) {
+func (p *ProgressTracker) increment(progress int64, data ...any) (prog Progress) {
 
 	if p.closed && p.Channel == nil {
 		// Nothing to do
@@ -88,11 +88,16 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		p.progress += progress
 	}
 
+	if p.updatesW == nil {
+		p.updatesW = make([]int64, p.timeSlots)
+		p.updatesT = make([]time.Time, p.timeSlots)
+	}
+
 	// Throttle sending updated, limit to updateFreq
 	// Always send when finished
 	if time.Since(p.lastSent) < p.updateFreq && !p.closed {
 		if (p.size <= 0) || (p.size > 0 && p.progress < p.size) {
-			return
+			return p.curProgress()
 		}
 	}
 
@@ -101,60 +106,15 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		p.startTime = curTime
 	}
 
-	prog := Progress{
-		Name:      p.name,
-		Unit:      p.unit,
-		StartTime: p.startTime,
-		Processed: p.progress,
-		Total:     p.size,
-	}
-
-	if data != nil && len(data) > 0 {
-		prog.Data = data[0]
-	}
-
-	if p.updatesW == nil {
-		p.updatesW = make([]int64, p.timeSlots)
-		p.updatesT = make([]time.Time, p.timeSlots)
-	}
-
 	// saves update data to the current slot
 	p.updatesW[p.updatesCounter%p.timeSlots] = p.progress
 	p.updatesT[p.updatesCounter%p.timeSlots] = curTime
 	p.updatesCounter++
 
-	if !p.updatesT[p.updatesCounter%p.timeSlots].IsZero() {
+	prog = p.curProgress()
 
-		// Calculate the average speed since starting the transfer
-		tp := time.Since(p.startTime)
-		if tp > 0 {
-			prog.SpeedAvg = int64((float64(p.progress) / float64(tp)) * float64(time.Second))
-		} else {
-			prog.SpeedAvg = -1
-		}
-
-		// Calculate the remaining time
-		if p.size > 0 && prog.SpeedAvg > 0 {
-			prog.Remaining = time.Duration((float64(p.size-p.progress) / float64(prog.SpeedAvg)) * float64(time.Second))
-		} else {
-			prog.Remaining = -1
-		}
-
-		// Calculate the average speed of the last updateFreq * p.timeSlots seconds
-		prog.Speed = int64(
-			(float64(p.progress-p.updatesW[p.updatesCounter%p.timeSlots]) /
-				float64(time.Since(p.updatesT[p.updatesCounter%p.timeSlots]))) *
-				float64(time.Second))
-
-	} else {
-		prog.Speed = -1
-		prog.SpeedAvg = -1
-		prog.Remaining = -1
-	}
-
-	// Calculate the percentage only if we have a size
-	if p.size > 0 {
-		prog.Percent = float64(int64((float64(p.progress)/float64(p.size))*10000.0)) / 100.0
+	if data != nil && len(data) > 0 {
+		prog.Data = data[0]
 	}
 
 	if p.closed || (p.size >= 0 && p.progress >= p.size) {
@@ -200,6 +160,51 @@ func (p *ProgressTracker) increment(progress int64, data ...any) {
 		}
 	}
 	p.send(prog)
+	return
+}
+
+func (p *ProgressTracker) curProgress() (progress Progress) {
+	progress = Progress{
+		Name:      p.name,
+		Unit:      p.unit,
+		StartTime: p.startTime,
+		Processed: p.progress,
+		Total:     p.size,
+	}
+
+	// Calculate the average speed since starting the transfer
+	tp := time.Since(p.startTime)
+	if tp > 0 {
+		progress.SpeedAvg = int64((float64(p.progress) / float64(tp)) * float64(time.Second))
+	} else {
+		progress.SpeedAvg = -1
+	}
+
+	// Calculate the remaining time
+	if p.size > 0 && progress.SpeedAvg > 0 {
+		progress.Remaining = time.Duration((float64(p.size-p.progress) / float64(progress.SpeedAvg)) * float64(time.Second))
+	} else {
+		progress.Remaining = -1
+	}
+
+	if !p.updatesT[p.updatesCounter%p.timeSlots].IsZero() {
+		// Calculate the average speed of the last updateFreq * p.timeSlots seconds
+		progress.Speed = int64(
+			(float64(p.progress-p.updatesW[p.updatesCounter%p.timeSlots]) /
+				float64(time.Since(p.updatesT[p.updatesCounter%p.timeSlots]))) *
+				float64(time.Second))
+
+	} else {
+		progress.Speed = -1
+		progress.SpeedAvg = -1
+		progress.Remaining = -1
+	}
+
+	// Calculate the percentage only if we have a size
+	if p.size > 0 {
+		progress.Percent = float64(int64((float64(p.progress)/float64(p.size))*10000.0)) / 100.0
+	}
+	return
 }
 
 func (p *ProgressTracker) cleanup() {
