@@ -183,8 +183,12 @@ func (p *ProgressTracker) curProgress() (progress Progress) {
 	// Calculate the remaining time
 	if p.size > 0 && progress.SpeedAvg > 0 {
 		progress.Remaining = time.Duration((float64(p.size-p.progress) / float64(progress.SpeedAvg)) * float64(time.Second))
+		progress.RemainingS = int64(progress.Remaining / time.Second)
+		progress.EstStopTime = progress.StartTime.Add(progress.Remaining)
 	} else {
 		progress.Remaining = -1
+		progress.RemainingS = -1
+		progress.EstStopTime = time.Time{}
 	}
 
 	if p.updatesT != nil &&
