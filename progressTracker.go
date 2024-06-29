@@ -23,6 +23,7 @@ type ProgressTracker struct {
 	progress             int64
 	block                bool
 	unit                 units.Unit
+	data                 any // additional data to be add to the progress updates
 	Channel              chan Progress
 	closed               bool
 	startTime            time.Time
@@ -115,6 +116,8 @@ func (p *ProgressTracker) increment(progress int64, data ...any) (prog Progress)
 
 	if data != nil && len(data) > 0 {
 		prog.Data = data[0]
+	} else {
+		prog.Data = p.data
 	}
 
 	if p.closed || (p.size >= 0 && p.progress >= p.size) {
@@ -332,5 +335,13 @@ func (p *ProgressTracker) SetBlock(b bool) *ProgressTracker {
 	p.Lock()
 	defer p.Unlock()
 	p.block = b
+	return p
+}
+
+// SetData sets additional customers data to be sent with progress updates
+func (p *ProgressTracker) SetData(d any) *ProgressTracker {
+	p.Lock()
+	defer p.Unlock()
+	p.data = d
 	return p
 }
