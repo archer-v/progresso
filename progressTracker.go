@@ -35,7 +35,7 @@ type ProgressTracker struct {
 	updateGranule        int64
 	updateGranulePercent int
 	updatesCounter       int // counter of updates
-	sync.Mutex
+	m                    sync.Mutex
 }
 
 // NewProgressTracker creates a new progress tracker with the given measurement unit
@@ -60,8 +60,8 @@ func NewBytesProgressTracker() *ProgressTracker {
 // at the given amount of work processed and fires the channel
 // data is optional and will be exposed as the Data field in the progress object
 func (p *ProgressTracker) Increment(progress int64, data ...any) (prog Progress) {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 
 	return p.increment(progress, data...)
 }
@@ -69,12 +69,12 @@ func (p *ProgressTracker) Increment(progress int64, data ...any) (prog Progress)
 // Update updates the tracker with new progress value
 // data is optional and will be exposed as the Data field in the progress object
 func (p *ProgressTracker) Update(progress int64, data ...any) (prog Progress) {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	if progress > p.progress {
 		return p.increment(progress-p.progress, data...)
 	}
-	return p.curProgress()
+	return p.curProgress(data...)
 	// Updates in the past isn't allowed now
 }
 
@@ -98,7 +98,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) (prog Progress)
 	// Always send when finished
 	if time.Since(p.lastSent) < p.updateFreq && !p.closed {
 		if (p.size <= 0) || (p.size > 0 && p.progress < p.size) {
-			return p.curProgress()
+			return p.curProgress(data...)
 		}
 	}
 
@@ -112,13 +112,7 @@ func (p *ProgressTracker) increment(progress int64, data ...any) (prog Progress)
 	p.updatesT[p.updatesCounter%p.timeSlots] = curTime
 	p.updatesCounter++
 
-	prog = p.curProgress()
-
-	if data != nil && len(data) > 0 {
-		prog.Data = data[0]
-	} else {
-		prog.Data = p.data
-	}
+	prog = p.curProgress(data...)
 
 	if p.closed || (p.size >= 0 && p.progress >= p.size) {
 		// EOF or closed, we have to send this last message, and then close the chan
@@ -166,13 +160,19 @@ func (p *ProgressTracker) increment(progress int64, data ...any) (prog Progress)
 	return
 }
 
-func (p *ProgressTracker) curProgress() (progress Progress) {
+func (p *ProgressTracker) curProgress(data ...any) (progress Progress) {
 	progress = Progress{
 		Name:      p.name,
 		Unit:      p.unit,
 		StartTime: p.startTime,
 		Processed: p.progress,
 		Total:     p.size,
+	}
+
+	if data != nil && len(data) > 0 {
+		progress.Data = data[0]
+	} else if p.data != nil {
+		progress.Data = p.data
 	}
 
 	// Calculate the average speed since starting the transfer
@@ -239,8 +239,8 @@ func (p *ProgressTracker) send(prog Progress) {
 
 // Reset resets the progress tracker to an initial state
 func (p *ProgressTracker) Reset() {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.progress = 0 // reset progress
 	p.startTime = time.Time{}
 	p.lastSent = time.Time{}
@@ -251,8 +251,8 @@ func (p *ProgressTracker) Reset() {
 
 // Stop stops the progress tracker, and sends the last message
 func (p *ProgressTracker) Stop() Progress {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.closed = true
 	return p.increment(-1)
 }
@@ -271,40 +271,40 @@ func (p *ProgressTracker) GetReader(r io.Reader, size int64) *ProgressTrackerRea
 
 // SetSize sets the total size of the work to be done
 func (p *ProgressTracker) SetSize(size int64) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.size = size
 	return p
 }
 
 // SetUpdateFreq sets the frequency at which to send updates
 func (p *ProgressTracker) SetUpdateFreq(freq time.Duration) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.updateFreq = freq
 	return p
 }
 
 // SetUpdateGranule sets size of the granule of work at which to send updates
 func (p *ProgressTracker) SetUpdateGranule(granule int64) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.updateGranule = granule
 	return p
 }
 
 // SetUpdateGranulePercent sets updates interval in percent of work at which to send updates
 func (p *ProgressTracker) SetUpdateGranulePercent(percent int) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.updateGranulePercent = percent
 	return p
 }
 
 // SetTimeSlots sets the number of time slots used to calculate an instant speed
 func (p *ProgressTracker) SetTimeSlots(slots int) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.timeSlots = slots
 	p.updatesW = nil
 	p.updatesT = nil
@@ -313,16 +313,16 @@ func (p *ProgressTracker) SetTimeSlots(slots int) *ProgressTracker {
 
 // SetName sets the name of the progress tracker
 func (p *ProgressTracker) SetName(name string) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.name = name
 	return p
 }
 
 // SetUnit sets the measurement unit of the progress tracker
 func (p *ProgressTracker) SetUnit(u units.Unit) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.unit = u
 	return p
 }
@@ -332,16 +332,16 @@ func (p *ProgressTracker) SetUnit(u units.Unit) *ProgressTracker {
 // use it carefully cause possible can lead to block Update / Increment
 // methods if the channel is full
 func (p *ProgressTracker) SetBlock(b bool) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.block = b
 	return p
 }
 
 // SetData sets additional customers data to be sent with progress updates
 func (p *ProgressTracker) SetData(d any) *ProgressTracker {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	p.data = d
 	return p
 }
