@@ -175,7 +175,7 @@ func (p *ProgressTracker) curProgress(data ...any) (progress Progress) {
 		progress.Data = p.data
 	}
 
-	// Calculate the average speed since starting the transfer
+	// Calculate the average speed since starting
 	tp := time.Since(p.startTime)
 	if tp > 0 {
 		progress.SpeedAvg = int64((float64(p.progress) / float64(tp)) * float64(time.Second))
@@ -203,9 +203,12 @@ func (p *ProgressTracker) curProgress(data ...any) (progress Progress) {
 				float64(time.Second))
 
 	} else {
+		// do not calculate for first timeSlots updates
 		progress.Speed = -1
 		progress.SpeedAvg = -1
 		progress.Remaining = -1
+		progress.RemainingS = -1
+		progress.EstStopTime = time.Time{}
 	}
 
 	// Calculate the percentage only if we have a size
